@@ -12,15 +12,22 @@ namespace SparseGrid
 		typedef unsigned long long CellIndex;
 		typedef unsigned long long CellPosition;
 
-		CubeSparseGrid(Range3D const& boundingBox, float cellSize) : _BoundingBox{boundingBox}, _CellSize{cellSize}
+		CubeSparseGrid(Range3D const& boundingBox, float cellSize, bool flexibleCellSize) : _BoundingBox{boundingBox}, _CellSizeX{cellSize}, _CellSizeY{ cellSize }, _CellSizeZ{ cellSize }
 		{
 			double xDistance = boundingBox.Max.X - boundingBox.Min.X;
 			double yDistance = boundingBox.Max.Y - boundingBox.Min.Y;
 			double zDistance = boundingBox.Max.Z - boundingBox.Min.Z;
 
-			_TotalCellsX = ceil(xDistance / cellSize);
-			_TotalCellsY = ceil(yDistance / cellSize);
-			_TotalCellsZ = ceil(zDistance / cellSize);
+			if (flexibleCellSize) {
+				_CellSizeX = (float)(xDistance / std::round(xDistance / _CellSizeX));
+				_CellSizeY = (float)(yDistance / std::round(yDistance / _CellSizeY));
+				_CellSizeZ = (float)(zDistance / std::round(zDistance / _CellSizeZ));
+			}
+
+
+			_TotalCellsX = (CellIndex)ceil(xDistance / _CellSizeX);
+			_TotalCellsY = (CellIndex)ceil(yDistance / _CellSizeY);
+			_TotalCellsZ = (CellIndex)ceil(zDistance / _CellSizeZ);
 
 			_TotalCellsXY = _TotalCellsX * _TotalCellsY;
 			_TotalCellsXYZ = _TotalCellsXY * _TotalCellsZ;
@@ -44,13 +51,20 @@ namespace SparseGrid
 			if (point.X > _BoundingBox.Max.X || point.X < _BoundingBox.Min.X || point.Y > _BoundingBox.Max.Y || point.Y < _BoundingBox.Min.Y || point.Z > _BoundingBox.Max.Z || point.Z < _BoundingBox.Min.Z)
 				return false;
 
+			if (point.X == _BoundingBox.Max.X)
+				point.X -= 0.000001;
+			if (point.Y == _BoundingBox.Max.Y)
+				point.Y -= 0.000001;
+			if (point.Z == _BoundingBox.Max.Z)
+				point.Z -= 0.000001;
+
 			double xDistance = point.X - _BoundingBox.Min.X;
 			double yDistance = point.Y - _BoundingBox.Min.Y;
 			double zDistance = point.Z - _BoundingBox.Min.Z;
 
-			CellPosition x = ceil(xDistance / _CellSize);
-			CellPosition y = ceil(yDistance / _CellSize);
-			CellPosition z = ceil(zDistance / _CellSize);
+			CellPosition x = (CellIndex)floor(xDistance / _CellSizeX);
+			CellPosition y = (CellIndex)floor(yDistance / _CellSizeY);
+			CellPosition z = (CellIndex)floor(zDistance / _CellSizeZ);
 
 			return GetCellIndex(x, y, z, cellIndex);
 		}
@@ -75,10 +89,15 @@ namespace SparseGrid
 			return true;
 		}
 
+		void GetCellSize(float *x, float *y, float *z) {
+			*x = _CellSizeX;
+			*y = _CellSizeY;
+			*z = _CellSizeZ;
+		}
 	private:
 		std::unordered_map<CellIndex, std::shared_ptr<GridCell>> _CellMap;
 		Range3D _BoundingBox;
-		float _CellSize;
+		float _CellSizeX, _CellSizeY, _CellSizeZ;
 
 		CellIndex _TotalCellsX, _TotalCellsY, _TotalCellsZ;
 		CellIndex _TotalCellsXY;
